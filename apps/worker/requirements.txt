@@ -1,0 +1,5 @@
+redis==5.0.8
+psycopg[binary]==3.2.1
+black==24.8.0
+ruff==0.6.5
+isort==5.13.2
