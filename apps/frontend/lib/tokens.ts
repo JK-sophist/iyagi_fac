@@ -1,20 +1,22 @@
 export const typography = {
-  pageTitle: 'text-2xl font-semibold tracking-tight',
-  sectionHeading: 'text-lg font-medium',
-  cardTitle: 'text-sm font-semibold',
-  body: 'text-sm text-slate-200',
-  meta: 'text-xs text-slate-400'
+  pageTitle: 'text-3xl font-semibold tracking-tight',
+  sectionHeading: 'text-xl font-medium tracking-tight',
+  cardTitle: 'text-sm font-semibold tracking-tight',
+  body: 'text-sm leading-6 text-slate-200',
+  meta: 'text-xs leading-5 text-slate-400'
 };
 
-export const radius = {
-  card: 'rounded-2xl',
-  panel: 'rounded-3xl'
+export const spacing = {
+  pageX: 'px-8',
+  pageY: 'py-6',
+  sectionGap: 'gap-6',
+  cardPad: 'p-5'
 };
 
 export const statusColor = {
-  danger: 'text-red-300 bg-red-500/20',
-  warning: 'text-amber-300 bg-amber-500/20',
-  stable: 'text-slate-200 bg-slate-600/30',
-  positive: 'text-emerald-300 bg-emerald-500/20',
-  checkpoint: 'text-indigo-300 bg-indigo-500/20'
+  danger: 'border-red-500/40 bg-red-500/15 text-red-200',
+  warning: 'border-amber-500/40 bg-amber-500/15 text-amber-200',
+  stable: 'border-slate-500/40 bg-slate-500/20 text-slate-200',
+  positive: 'border-emerald-500/40 bg-emerald-500/15 text-emerald-200',
+  checkpoint: 'border-indigo-500/40 bg-indigo-500/15 text-indigo-200'
 };

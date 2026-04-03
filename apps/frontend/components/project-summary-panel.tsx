@@ -1,12 +1,17 @@
+import { typography } from '@/lib/tokens';
+
 export function ProjectSummaryPanel({ project }: { project: any }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 shadow-soft" aria-label="project summary panel">
-      <h3 className="mb-2 text-sm font-semibold">프로젝트 요약</h3>
-      <p className="text-xs text-slate-300">제목: {project?.title}</p>
-      <p className="text-xs text-slate-400">세계관 버전 수: {project?.world_settings?.length ?? 0}</p>
-      <p className="text-xs text-slate-400">결말 목표 수: {project?.ending_goals?.length ?? 0}</p>
-      <p className="text-xs text-slate-400">캐릭터 수: {project?.character_ids?.length ?? 0}</p>
-      <p className="text-xs text-slate-400">관계 수: {project?.relationships?.length ?? 0}</p>
+    <section className="card-shell p-5" aria-label="project summary panel">
+      <h3 className={typography.cardTitle}>{project?.title}</h3>
+      <p className="mt-1 text-xs text-slate-400">{project?.description ?? '설명 없음'}</p>
+
+      <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+        <span className="rounded-xl bg-panel px-2 py-1">세계관 버전: {project?.world_settings?.length ?? 0}</span>
+        <span className="rounded-xl bg-panel px-2 py-1">결말 목표: {project?.ending_goals?.length ?? 0}</span>
+        <span className="rounded-xl bg-panel px-2 py-1">캐릭터: {project?.character_ids?.length ?? 0}</span>
+        <span className="rounded-xl bg-panel px-2 py-1">관계: {project?.relationships?.length ?? 0}</span>
+      </div>
     </section>
   );
 }

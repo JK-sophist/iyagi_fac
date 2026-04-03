@@ -7,6 +7,7 @@ import { CandidateCard } from '@/components/candidate-card';
 import { CharacterStatePanel } from '@/components/character-state-panel';
 import { RelationshipDeltaPanel } from '@/components/relationship-delta-panel';
 import { SessionStatusBar } from '@/components/session-status-bar';
+import { typography } from '@/lib/tokens';
 import { apiGet, apiPost } from '@/lib/api';
 
 export default function SessionProgressPage({ params }: { params: { sessionId: string } }) {
@@ -51,12 +52,12 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
   };
 
   if (loading) return <div className="skeleton h-56" />;
-  if (error) return <p className="rounded-2xl bg-red-500/20 p-3 text-xs text-red-300">{error}</p>;
+  if (error) return <p className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-xs text-red-300">{error}</p>;
 
   const introducedCount = latestScene?.state_delta?.emotion_updates?.filter((x: any) => x.introduced).length ?? 0;
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
       <SessionStatusBar
         sceneNo={latestScene?.scene_no ?? 0}
         phase={session?.stopped_reason ?? 'awaiting_suggestions'}
@@ -64,17 +65,20 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
         introducedCount={introducedCount}
       />
 
-      <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">다음 장면 후보 3개</h2>
-            <button className="rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-slate-950" onClick={generateCandidates}>다음 후보 보기</button>
+      <div className="grid gap-6 xl:grid-cols-[1.25fr_1fr]">
+        <div className="space-y-4">
+          <div className="card-shell p-5">
+            <div className="flex items-center justify-between">
+              <h2 className={typography.sectionHeading}>다음 장면 후보 3개</h2>
+              <button className="btn-primary text-xs" onClick={generateCandidates}>다음 후보 보기</button>
+            </div>
+            <p className="mt-2 text-xs text-slate-400">후보 제안과 실행은 분리되어 있으며, 실행 후 반드시 사용자 승인 대기 상태로 멈춥니다.</p>
           </div>
 
           {candidates.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-card p-4 text-xs text-slate-400">후보가 없습니다. "다음 후보 보기"를 눌러주세요.</div>
+            <div className="empty-state">후보가 없습니다. 상단의 <strong>다음 후보 보기</strong> 버튼을 눌러주세요.</div>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid gap-4">
               {candidates.map((c) => (
                 <CandidateCard key={c.candidate_id} candidate={c} onSelect={executeCandidate} />
               ))}
@@ -82,19 +86,21 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
           )}
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           <RelationshipDeltaPanel scene={latestScene} />
           <CharacterStatePanel scene={latestScene} />
         </div>
       </div>
 
-      <section className="rounded-2xl border border-border bg-card p-4 shadow-soft">
-        <h3 className="mb-2 text-sm font-semibold">최근 실행 장면 로그 요약</h3>
+      <section className="card-shell p-5">
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className={typography.cardTitle}>최근 실행 장면 로그 요약</h3>
+          {latestScene && <Link href={`/scenes/${latestScene.id}`} className="btn-secondary text-xs">장면 상세 보기</Link>}
+        </div>
         {latestScene ? (
           <>
-            <p className="mb-1 text-xs">{latestScene.title}</p>
-            <p className="mb-2 text-xs text-slate-400">{latestScene.dialogue_log?.[0]}</p>
-            <Link href={`/scenes/${latestScene.id}`} className="rounded-lg bg-panel px-3 py-2 text-xs">장면 상세 보기</Link>
+            <p className="text-sm font-medium">{latestScene.title}</p>
+            <p className="mt-2 text-xs text-slate-400">{latestScene.dialogue_log?.[0]}</p>
           </>
         ) : (
           <p className="text-xs text-slate-400">아직 실행된 장면이 없습니다.</p>
@@ -102,7 +108,7 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
       </section>
 
       {warnings.length > 0 && (
-        <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+        <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-xs text-amber-200">
           {warnings.map((w) => (
             <p key={w}>{w}</p>
           ))}

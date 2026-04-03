@@ -3,14 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --bg: 222 42% 7%;
-  --panel: 222 28% 12%;
-  --card: 222 24% 16%;
-  --border: 218 20% 28%;
-  --text: 214 32% 93%;
-  --accent: 191 95% 58%;
+  --bg: 224 38% 7%;
+  --panel: 224 24% 11%;
+  --card: 224 20% 15%;
+  --card-strong: 224 18% 19%;
+  --border: 218 18% 28%;
+  --text: 214 30% 94%;
+  --accent: 196 96% 58%;
   --danger: 0 84% 60%;
-  --warning: 41 92% 54%;
+  --warning: 41 95% 56%;
   --success: 156 72% 44%;
 }
 
@@ -24,9 +25,29 @@ body {
 }
 
 .shadow-soft {
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.24);
+}
+
+.card-shell {
+  @apply rounded-2xl border border-border bg-card shadow-soft;
+}
+
+.card-strong {
+  @apply rounded-2xl border border-border bg-[hsl(var(--card-strong))] shadow-soft;
+}
+
+.btn-primary {
+  @apply rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-slate-950 transition hover:brightness-110 focus:ring-2 focus:ring-accent;
+}
+
+.btn-secondary {
+  @apply rounded-xl bg-panel px-4 py-2 text-sm text-slate-200 transition hover:bg-card focus:ring-2 focus:ring-accent;
 }
 
 .skeleton {
-  @apply animate-pulse rounded-2xl bg-slate-700/30;
+  @apply animate-pulse rounded-2xl bg-slate-700/35;
+}
+
+.empty-state {
+  @apply rounded-2xl border border-dashed border-border bg-card p-6 text-sm text-slate-400;
 }
