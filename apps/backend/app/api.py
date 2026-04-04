@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -19,6 +20,8 @@ from app.services.simulation import (
     SessionState,
     StopConditionEvaluator,
 )
+
+KST = ZoneInfo("Asia/Seoul")
 
 router = APIRouter(prefix="/api")
 
@@ -72,7 +75,7 @@ def create_project(body: CreateProjectRequest) -> dict:
         "character_ids": [],
         "relationships": [],
         "session_ids": [],
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": datetime.now(KST).isoformat(),
     }
     return ok(store.projects[project_id])
 
