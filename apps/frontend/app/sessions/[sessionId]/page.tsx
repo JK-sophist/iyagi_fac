@@ -107,6 +107,17 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
             )}
           </div>
 
+          {session?.current_major_goal_conflicts?.length > 0 && (
+            <div className="card-shell space-y-2 p-5">
+              <h3 className={typography.cardTitle}>현재 주요 목표 충돌</h3>
+              <ul className="text-xs text-slate-300">
+                {session.current_major_goal_conflicts.map((c: any, idx: number) => (
+                  <li key={`${c.actor}-${idx}`}>- {c.actor}({c.actor_goal}) ↔ {c.rival}({c.rival_goal})</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {candidates.length === 0 ? (
             <div className="empty-state">후보가 없습니다. 상단의 <strong>다음 후보 보기</strong> 버튼을 눌러주세요.</div>
           ) : (

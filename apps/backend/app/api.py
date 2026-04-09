@@ -74,6 +74,13 @@ def create_project(body: CreateProjectRequest) -> dict:
         "description": body.description,
         "world_settings": [],
         "ending_goals": [],
+        "ending_vectors": {
+            "collapse_vector": 0.0,
+            "domination_vector": 0.0,
+            "reconciliation_vector": 0.0,
+            "betrayal_vector": 0.0,
+            "corruption_vector": 0.0,
+        },
         "character_ids": [],
         "relationships": [],
         "session_ids": [],
@@ -121,6 +128,7 @@ class EndingGoalRequest(BaseModel):
     goal_text: str
     detail: dict = Field(default_factory=dict)
     effective_from_scene_no: int | None = None
+    ending_vectors: dict[str, float] = Field(default_factory=dict)
 
 
 @router.post("/projects/{project_id}/ending-goals")
@@ -135,6 +143,7 @@ def create_ending_goal(project_id: str, body: EndingGoalRequest) -> dict:
         "effective_from_scene_no": body.effective_from_scene_no,
         "goal_text": body.goal_text,
         "detail": body.detail,
+        "ending_vectors": body.ending_vectors,
     }
     project["ending_goals"].append(item)
     return ok(item)
@@ -144,6 +153,15 @@ class CharacterCreateRequest(BaseModel):
     name: str
     archetype: str | None = None
     is_introduced: bool = False
+    surface_goal: str | None = None
+    hidden_goal: str | None = None
+    short_term_goal: str | None = None
+    long_term_goal: str | None = None
+    fear_or_taboo: str | None = None
+    leverage: str | None = None
+    secret: str | None = None
+    speaking_style_note: str | None = None
+    writer_note: str | None = None
 
 
 @router.post("/projects/{project_id}/characters")
@@ -162,6 +180,15 @@ def create_character(project_id: str, body: CharacterCreateRequest) -> dict:
         "first_scene_no": None,
         "is_archived": False,
         "effective_from_scene_no": 0,
+        "surface_goal": body.surface_goal,
+        "hidden_goal": body.hidden_goal,
+        "short_term_goal": body.short_term_goal,
+        "long_term_goal": body.long_term_goal,
+        "fear_or_taboo": body.fear_or_taboo,
+        "leverage": body.leverage,
+        "secret": body.secret,
+        "speaking_style_note": body.speaking_style_note,
+        "writer_note": body.writer_note,
     }
     store.characters[character_id] = character
     project["character_ids"].append(character_id)
@@ -172,6 +199,15 @@ class CharacterUpdateRequest(BaseModel):
     name: str | None = None
     archetype: str | None = None
     effective_from_scene_no: int | None = None
+    surface_goal: str | None = None
+    hidden_goal: str | None = None
+    short_term_goal: str | None = None
+    long_term_goal: str | None = None
+    fear_or_taboo: str | None = None
+    leverage: str | None = None
+    secret: str | None = None
+    speaking_style_note: str | None = None
+    writer_note: str | None = None
 
 
 @router.put("/characters/{character_id}")
@@ -179,10 +215,31 @@ def update_character(character_id: str, body: CharacterUpdateRequest) -> dict:
     character = store.characters.get(character_id)
     if not character:
         fail("character_not_found", "Character not found", 404)
-    for key in ["name", "archetype", "effective_from_scene_no"]:
+    for key in [
+        "name",
+        "archetype",
+        "effective_from_scene_no",
+        "surface_goal",
+        "hidden_goal",
+        "short_term_goal",
+        "long_term_goal",
+        "fear_or_taboo",
+        "leverage",
+        "secret",
+        "speaking_style_note",
+        "writer_note",
+    ]:
         value = getattr(body, key)
         if value is not None:
             character[key] = value
+    return ok(character)
+
+
+@router.get("/characters/{character_id}")
+def get_character(character_id: str) -> dict:
+    character = store.characters.get(character_id)
+    if not character:
+        fail("character_not_found", "Character not found", 404)
     return ok(character)
 
 
@@ -217,6 +274,10 @@ class RelationshipRequest(BaseModel):
     affection: float = 0.0
     hostility: float = 0.0
     dependency: float = 0.0
+    utility_value: float = 0.0
+    surveillance_level: float = 0.0
+    betrayal_risk: float = 0.0
+    shared_secret: str = ""
 
 
 @router.post("/projects/{project_id}/relationships")
@@ -254,7 +315,21 @@ class CreateSessionRequest(BaseModel):
 
 def build_engine_state(project_id: str, session_id: str) -> SessionState:
     chars = [
-        CharacterState(id=c["id"], name=c["name"], is_introduced=c["is_introduced"], is_archived=c["is_archived"])
+        CharacterState(
+            id=c["id"],
+            name=c["name"],
+            is_introduced=c["is_introduced"],
+            is_archived=c["is_archived"],
+            surface_goal=c.get("surface_goal") or "",
+            hidden_goal=c.get("hidden_goal") or "",
+            short_term_goal=c.get("short_term_goal") or "",
+            long_term_goal=c.get("long_term_goal") or "",
+            fear_or_taboo=c.get("fear_or_taboo") or "",
+            leverage=c.get("leverage") or "",
+            secret=c.get("secret") or "",
+            speaking_style_note=c.get("speaking_style_note") or "",
+            writer_note=c.get("writer_note") or "",
+        )
         for c in store.characters.values()
         if c["project_id"] == project_id
     ]
@@ -265,10 +340,40 @@ def build_engine_state(project_id: str, session_id: str) -> SessionState:
             to_character_id=r["to_character_id"],
             trust=r["trust"],
             tension=r["tension"],
+            hostility=r.get("hostility", 0.0),
+            dependency=r.get("dependency", 0.0),
+            utility_value=r.get("utility_value", 0.0),
+            surveillance_level=r.get("surveillance_level", 0.0),
+            betrayal_risk=r.get("betrayal_risk", 0.0),
+            shared_secret=r.get("shared_secret", ""),
         )
         for r in project["relationships"]
     ]
     return SessionState(session_id=session_id, project_id=project_id, characters=chars, relationships=rels)
+
+
+def summarize_goal_conflicts(session: dict) -> list[dict]:
+    conflicts: list[dict] = []
+    for item in session.get("candidate_cache", []):
+        conflicts.extend(item.get("goal_conflicts", []))
+    if conflicts:
+        return conflicts
+    project = store.projects.get(session["project_id"], {})
+    chars = [store.characters[cid] for cid in project.get("character_ids", []) if cid in store.characters]
+    for idx in range(min(len(chars), 3)):
+        actor = chars[idx]
+        rival = chars[(idx + 1) % len(chars)] if len(chars) > 1 else chars[idx]
+        if actor.get("short_term_goal") or actor.get("surface_goal"):
+            conflicts.append(
+                {
+                    "actor": actor["name"],
+                    "actor_goal": actor.get("short_term_goal") or actor.get("surface_goal"),
+                    "rival": rival["name"],
+                    "rival_goal": rival.get("short_term_goal") or rival.get("surface_goal"),
+                    "conflict_axis": "resource / trust",
+                }
+            )
+    return conflicts
 
 
 @router.post("/projects/{project_id}/sessions")
@@ -302,6 +407,7 @@ def get_session(session_id: str) -> dict:
         fail("session_not_found", "Session not found", 404)
     data = {k: v for k, v in session.items() if k != "engine_state"}
     data["scene_count"] = len(session["scene_ids"])
+    data["current_major_goal_conflicts"] = summarize_goal_conflicts(session)
     return ok(data, stop_reason=session["stopped_reason"])
 
 
@@ -323,6 +429,9 @@ def generate_scene_candidates(session_id: str) -> dict:
             "predicted_effects": c.predicted_effects,
             "risk_notes": c.risk_notes,
             "expected_stop_reason": c.expected_stop_reason,
+            "goal_conflicts": c.goal_conflicts,
+            "active_motives": c.active_motives,
+            "scheme_opportunities": c.scheme_opportunities,
         }
         for c in candidates
     ]
@@ -364,6 +473,9 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
         "action_log": result.action_log,
         "system_log": result.system_log,
         "predicted_effects": candidate_data["predicted_effects"],
+        "goal_conflicts": candidate_data.get("goal_conflicts", []),
+        "active_motives": candidate_data.get("active_motives", []),
+        "scheme_opportunities": candidate_data.get("scheme_opportunities", []),
         "state_delta": result.state_delta,
     }
     store.scenes[scene_id] = scene_obj
@@ -471,7 +583,7 @@ def export_project(project_id: str, format: Literal["markdown", "txt"] = Query(d
         lines.append("[Scenes]")
         lines.extend(
             [
-                f"{scene['scene_no']}. {scene['title']} | status={scene.get('scene_status', 'pending')} | memo={scene.get('writer_memo') or '-'}"
+                f"{scene['scene_no']}. {scene['title']} | status={scene.get('scene_status', 'pending')} | memo={scene.get('writer_memo') or '-'} | manual_goal={(scene.get('manual_goal') or {}).get('goal', '-')}"
                 for scene in scenes
             ]
             or ["(none)"]
@@ -484,7 +596,7 @@ def export_project(project_id: str, format: Literal["markdown", "txt"] = Query(d
     lines.append("## Scenes")
     lines.extend(
         [
-            f"- Scene {scene['scene_no']}: **{scene['title']}** (`{scene.get('scene_status', 'pending')}`)\n  - memo: {scene.get('writer_memo') or '-'}"
+            f"- Scene {scene['scene_no']}: **{scene['title']}** (`{scene.get('scene_status', 'pending')}`)\n  - memo: {scene.get('writer_memo') or '-'}\n  - manual_goal: {(scene.get('manual_goal') or {}).get('goal', '-')}"
             for scene in scenes
         ]
         or ["- (none)"]
@@ -571,6 +683,7 @@ def branch_from_checkpoint(checkpoint_id: str, body: BranchRequest) -> dict:
         "scene_ids": list(cp["snapshot_json"]["scene_ids"]),
         "candidate_cache": [],
         "checkpoint_ids": [],
+        "manual_scene_goal": None,
         "engine_state": new_state,
     }
     store.sessions[new_session_id] = session

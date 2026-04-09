@@ -13,6 +13,15 @@ class CharacterState:
     is_introduced: bool
     is_archived: bool = False
     emotion: str = "neutral"
+    surface_goal: str = ""
+    hidden_goal: str = ""
+    short_term_goal: str = ""
+    long_term_goal: str = ""
+    fear_or_taboo: str = ""
+    leverage: str = ""
+    secret: str = ""
+    speaking_style_note: str = ""
+    writer_note: str = ""
 
 
 @dataclass
@@ -21,6 +30,12 @@ class RelationshipState:
     to_character_id: str
     trust: float = 0.0
     tension: float = 0.0
+    hostility: float = 0.0
+    dependency: float = 0.0
+    utility_value: float = 0.0
+    surveillance_level: float = 0.0
+    betrayal_risk: float = 0.0
+    shared_secret: str = ""
 
 
 @dataclass
@@ -35,6 +50,9 @@ class SceneCandidate:
     predicted_effects: dict
     risk_notes: list[str]
     expected_stop_reason: str
+    goal_conflicts: list[dict] = field(default_factory=list)
+    active_motives: list[dict] = field(default_factory=list)
+    scheme_opportunities: list[str] = field(default_factory=list)
 
 
 @dataclass

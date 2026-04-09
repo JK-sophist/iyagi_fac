@@ -9,6 +9,9 @@ type Candidate = {
   predicted_effects: unknown;
   risk_notes: string[];
   expected_stop_reason: string;
+  goal_conflicts?: Array<{ actor: string; actor_goal: string; rival: string; rival_goal: string }>;
+  active_motives?: Array<{ character: string; surface_goal: string; hidden_goal: string; short_term_goal: string }>;
+  scheme_opportunities?: string[];
 };
 
 export function CandidateCard({ candidate, onSelect }: { candidate: Candidate; onSelect: (id: string) => void }) {
@@ -23,6 +26,22 @@ export function CandidateCard({ candidate, onSelect }: { candidate: Candidate; o
       </header>
 
       <div className="space-y-2 text-xs leading-5">
+        {candidate.goal_conflicts?.[0] && (
+          <p>
+            <span className="text-slate-400">핵심 목표 충돌:</span>{' '}
+            {candidate.goal_conflicts[0].actor}({candidate.goal_conflicts[0].actor_goal}) ↔{' '}
+            {candidate.goal_conflicts[0].rival}({candidate.goal_conflicts[0].rival_goal})
+          </p>
+        )}
+        {candidate.active_motives && candidate.active_motives.length > 0 && (
+          <p>
+            <span className="text-slate-400">누가 무엇을 노리는가:</span>{' '}
+            {candidate.active_motives.map((m) => `${m.character}:${m.short_term_goal || m.surface_goal || '-'}`).join(' / ')}
+          </p>
+        )}
+        {candidate.scheme_opportunities && candidate.scheme_opportunities.length > 0 && (
+          <p><span className="text-slate-400">계략/협상 가능성:</span> {candidate.scheme_opportunities.join(' · ')}</p>
+        )}
         <p><span className="text-slate-400">왜 지금:</span> {candidate.why_now}</p>
         <p><span className="text-slate-400">예상 효과:</span> {JSON.stringify(candidate.predicted_effects)}</p>
         <p className="text-amber-200"><span className="text-amber-300">예상 위험:</span> {candidate.risk_notes.join(', ')}</p>

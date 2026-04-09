@@ -5,6 +5,8 @@ import { apiGet } from '@/lib/api';
 
 export default async function ProjectDetailPage({ params }: { params: { projectId: string } }) {
   const project = await apiGet<any>(`/projects/${params.projectId}`);
+  const latestSessionId = project.data.session_ids?.[project.data.session_ids.length - 1];
+  const latestSession = latestSessionId ? await apiGet<any>(`/sessions/${latestSessionId}`) : null;
 
   return (
     <section className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
@@ -31,6 +33,22 @@ export default async function ProjectDetailPage({ params }: { params: { projectI
         <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
           <h3 className="mb-2 text-sm font-semibold">다음 장면 후보 / 최근 장면</h3>
           <p className="text-xs text-slate-400">세션이 시작되면 이 패널에서 후보 및 최근 장면을 확인합니다.</p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h3 className="mb-2 text-sm font-semibold">인물 목표 / 충돌 구조</h3>
+          {latestSession?.data?.current_major_goal_conflicts?.length ? (
+            <ul className="space-y-2 text-xs">
+              {latestSession.data.current_major_goal_conflicts.map((conflict: any, idx: number) => (
+                <li key={`${conflict.actor}-${idx}`} className="rounded-lg bg-panel px-3 py-2">
+                  <p><strong>{conflict.actor}</strong>: {conflict.actor_goal}</p>
+                  <p className="text-slate-400">충돌 대상: {conflict.rival} ({conflict.rival_goal})</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-slate-400">아직 세션 충돌 요약이 없습니다. 세션 시작 후 후보를 생성해보세요.</p>
+          )}
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">

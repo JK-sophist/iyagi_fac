@@ -50,6 +50,19 @@ export default function SceneDetailPage({ params }: { params: { sceneId: string 
       </section>
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+        <h3 className="mb-2 text-sm font-semibold">이 장면의 목표 충돌 / 계략 가능성</h3>
+        <ul className="space-y-1 text-xs">
+          {(scene.goal_conflicts ?? []).map((conflict: any, idx: number) => (
+            <li key={idx}>- {conflict.actor}({conflict.actor_goal}) ↔ {conflict.rival}({conflict.rival_goal})</li>
+          ))}
+          {(!scene.goal_conflicts || scene.goal_conflicts.length === 0) && <li>- 기록된 충돌 정보가 없습니다.</li>}
+        </ul>
+        {(scene.scheme_opportunities ?? []).length > 0 && (
+          <p className="mt-2 text-xs text-slate-300">계략/협상/은폐/유혹 후보: {(scene.scheme_opportunities ?? []).join(' · ')}</p>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-soft">
         <h3 className="mb-2 text-sm font-semibold">관련 캐릭터 카드</h3>
         <div className="flex flex-wrap gap-2">
           {scene.participants.map((p: string) => (
