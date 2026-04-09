@@ -5,7 +5,8 @@ from datetime import datetime
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from app.services.simulation import (
@@ -33,6 +34,7 @@ class Store:
         self.sessions: dict[str, dict] = {}
         self.scenes: dict[str, dict] = {}
         self.checkpoints: dict[str, dict] = {}
+        self.writer_memos: dict[str, dict] = {}
 
 
 store = Store()
@@ -75,6 +77,7 @@ def create_project(body: CreateProjectRequest) -> dict:
         "character_ids": [],
         "relationships": [],
         "session_ids": [],
+        "writer_memo_ids": [],
         "created_at": datetime.now(KST).isoformat(),
     }
     return ok(store.projects[project_id])
@@ -284,6 +287,7 @@ def create_session(project_id: str, body: CreateSessionRequest) -> dict:
         "scene_ids": [],
         "candidate_cache": [],
         "checkpoint_ids": [],
+        "manual_scene_goal": None,
         "engine_state": build_engine_state(project_id, session_id),
     }
     store.sessions[session_id] = session
@@ -351,6 +355,9 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
         "id": scene_id,
         "session_id": session_id,
         "scene_no": result.scene_no,
+        "scene_status": "pending",
+        "writer_memo": None,
+        "manual_goal": session.get("manual_scene_goal"),
         "title": result.title,
         "participants": result.participants,
         "dialogue_log": result.dialogue_log,
@@ -361,6 +368,7 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
     }
     store.scenes[scene_id] = scene_obj
     session["scene_ids"].append(scene_id)
+    session["manual_scene_goal"] = None
     session["stopped_reason"] = session["engine_state"].stop_reason or "user_decision_required"
     return ok(scene_obj, stop_reason=session["stopped_reason"], warnings=["Scene executed. System stopped for user approval."])
 
@@ -380,6 +388,108 @@ def get_scene(scene_id: str) -> dict:
     if not scene:
         fail("scene_not_found", "Scene not found", 404)
     return ok(scene)
+
+
+class SceneReviewUpdateRequest(BaseModel):
+    scene_status: Literal["adopted", "on_hold", "discarded"] | None = None
+    writer_memo: str | None = None
+
+
+@router.put("/scenes/{scene_id}/review")
+def update_scene_review(scene_id: str, body: SceneReviewUpdateRequest) -> dict:
+    scene = store.scenes.get(scene_id)
+    if not scene:
+        fail("scene_not_found", "Scene not found", 404)
+    if body.scene_status is not None:
+        scene["scene_status"] = body.scene_status
+    if body.writer_memo is not None:
+        scene["writer_memo"] = body.writer_memo
+    return ok(scene)
+
+
+class ManualSceneGoalRequest(BaseModel):
+    goal: str
+    note: str | None = None
+
+
+@router.post("/sessions/{session_id}/manual-scene-goal")
+def set_manual_scene_goal(session_id: str, body: ManualSceneGoalRequest) -> dict:
+    session = store.sessions.get(session_id)
+    if not session:
+        fail("session_not_found", "Session not found", 404)
+    session["manual_scene_goal"] = {"goal": body.goal, "note": body.note}
+    return ok({"session_id": session_id, "manual_scene_goal": session["manual_scene_goal"]})
+
+
+class WriterMemoCreateRequest(BaseModel):
+    content: str
+    tags: list[str] = Field(default_factory=list)
+
+
+@router.get("/projects/{project_id}/writer-memos")
+def list_writer_memos(project_id: str) -> dict:
+    project = store.projects.get(project_id)
+    if not project:
+        fail("project_not_found", "Project not found", 404)
+    items = [store.writer_memos[mid] for mid in project["writer_memo_ids"]]
+    return ok({"items": items})
+
+
+@router.post("/projects/{project_id}/writer-memos")
+def create_writer_memo(project_id: str, body: WriterMemoCreateRequest) -> dict:
+    project = store.projects.get(project_id)
+    if not project:
+        fail("project_not_found", "Project not found", 404)
+    memo_id = str(uuid.uuid4())
+    memo = {
+        "id": memo_id,
+        "project_id": project_id,
+        "content": body.content,
+        "tags": body.tags,
+        "created_at": datetime.now(KST).isoformat(),
+    }
+    store.writer_memos[memo_id] = memo
+    project["writer_memo_ids"].append(memo_id)
+    return ok(memo)
+
+
+@router.get("/projects/{project_id}/export", response_class=PlainTextResponse)
+def export_project(project_id: str, format: Literal["markdown", "txt"] = Query(default="markdown")) -> str:
+    project = store.projects.get(project_id)
+    if not project:
+        fail("project_not_found", "Project not found", 404)
+    sessions = [store.sessions[sid] for sid in project["session_ids"] if sid in store.sessions]
+    scenes: list[dict] = []
+    for session in sessions:
+        scenes.extend([store.scenes[sid] for sid in session["scene_ids"] if sid in store.scenes])
+    memos = [store.writer_memos[mid] for mid in project["writer_memo_ids"]]
+
+    if format == "txt":
+        lines = [f"Project: {project['title']}", f"Description: {project.get('description') or '-'}", "", "[Writer Memos]"]
+        lines.extend([f"- {memo['content']}" for memo in memos] or ["- (none)"])
+        lines.append("")
+        lines.append("[Scenes]")
+        lines.extend(
+            [
+                f"{scene['scene_no']}. {scene['title']} | status={scene.get('scene_status', 'pending')} | memo={scene.get('writer_memo') or '-'}"
+                for scene in scenes
+            ]
+            or ["(none)"]
+        )
+        return "\n".join(lines)
+
+    lines = [f"# {project['title']}", "", f"> {project.get('description') or 'No description'}", "", "## Writer Memos"]
+    lines.extend([f"- {memo['content']}" for memo in memos] or ["- (none)"])
+    lines.append("")
+    lines.append("## Scenes")
+    lines.extend(
+        [
+            f"- Scene {scene['scene_no']}: **{scene['title']}** (`{scene.get('scene_status', 'pending')}`)\n  - memo: {scene.get('writer_memo') or '-'}"
+            for scene in scenes
+        ]
+        or ["- (none)"]
+    )
+    return "\n".join(lines)
 
 
 class CheckpointCreateRequest(BaseModel):

@@ -15,6 +15,8 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
   const [candidates, setCandidates] = useState<any[]>([]);
   const [latestScene, setLatestScene] = useState<any>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [manualGoal, setManualGoal] = useState('');
+  const [manualGoalNote, setManualGoalNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +53,13 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
     await loadSession();
   };
 
+  const saveManualGoal = async () => {
+    if (!manualGoal.trim()) return;
+    await apiPost(`/sessions/${params.sessionId}/manual-scene-goal`, { goal: manualGoal, note: manualGoalNote });
+    setWarnings((prev) => ['직접 장면 목표를 저장했습니다. 다음 실행 장면에 연결됩니다.', ...prev]);
+    await loadSession();
+  };
+
   if (loading) return <div className="skeleton h-56" />;
   if (error) return <p className="rounded-2xl border border-red-500/40 bg-red-500/10 p-4 text-xs text-red-300">{error}</p>;
 
@@ -73,6 +82,29 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
               <button className="btn-primary text-xs" onClick={generateCandidates}>다음 후보 보기</button>
             </div>
             <p className="mt-2 text-xs text-slate-400">후보 제안과 실행은 분리되어 있으며, 실행 후 반드시 사용자 승인 대기 상태로 멈춥니다.</p>
+          </div>
+
+          <div className="card-shell space-y-3 p-5">
+            <h3 className={typography.cardTitle}>직접 장면 목표 입력</h3>
+            <p className="text-xs text-slate-400">AI 추천과 별개로 작가가 원하는 목표를 먼저 기록할 수 있습니다.</p>
+            <input
+              value={manualGoal}
+              onChange={(e) => setManualGoal(e.target.value)}
+              className="w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm"
+              placeholder="예: 주인공이 거짓말을 고백하게 만들기"
+            />
+            <textarea
+              value={manualGoalNote}
+              onChange={(e) => setManualGoalNote(e.target.value)}
+              className="w-full rounded-xl border border-border bg-panel px-3 py-2 text-xs"
+              placeholder="보조 메모 (선택)"
+            />
+            <button className="btn-secondary text-xs" onClick={saveManualGoal}>목표 저장</button>
+            {session?.manual_scene_goal && (
+              <p className="text-xs text-indigo-300">
+                저장됨: {session.manual_scene_goal.goal}
+              </p>
+            )}
           </div>
 
           {candidates.length === 0 ? (

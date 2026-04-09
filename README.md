@@ -1,6 +1,6 @@
-# Iyagi Fac MVP (반자동 서사 시뮬레이터)
+# Iyagi Fac MVP (개인용 작가 워크벤치)
 
-> 이 서비스는 **자동 소설 생성기**가 아닙니다.
+> 이 프로젝트는 출시형 서비스보다 **개인용 글쓰기 보조 도구**에 집중합니다.
 > 사용자는 작가/감독이며, 시스템은 후보 제안과 시뮬레이션 보조를 수행합니다.
 
 ## 핵심 원칙
@@ -8,6 +8,7 @@
 - 자동 진행/자동 결말/자동 챕터 완성 **미지원**
 - 소설 **문체 변환 기능 없음**
 - **체크포인트/분기 실험**이 MVP 핵심
+- **자유 메모 / 장면 상태(채택·보류·폐기) / 직접 장면 목표 입력**을 우선 강화
 - 설정 변경은 기본적으로 **이후 장면부터 반영**
 - 과거 장면은 **immutable record**
 
@@ -87,3 +88,4 @@ python -m scripts.demo_story_run
 - Secrets/Env: `docs/secrets-and-env.md`
 - Frontend UX: `docs/frontend-mvp.md`, `docs/ux-flow.md`, `docs/design-system.md`, `docs/component-map.md`
 - Engine/Rules: `docs/simulation-engine.md`, `docs/stop-rules.md`, `docs/scene-lifecycle.md`
+- Pivot 계획: `docs/pivot-personal-writer-tool.md`

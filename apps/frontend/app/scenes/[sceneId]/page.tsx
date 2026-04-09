@@ -4,17 +4,33 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { SceneLogTabs } from '@/components/scene-log-tabs';
-import { apiGet } from '@/lib/api';
+import { apiGet, apiPut } from '@/lib/api';
 
 export default function SceneDetailPage({ params }: { params: { sceneId: string } }) {
   const [scene, setScene] = useState<any>(null);
+  const [sceneStatus, setSceneStatus] = useState<'adopted' | 'on_hold' | 'discarded'>('on_hold');
+  const [writerMemo, setWriterMemo] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     apiGet<any>(`/scenes/${params.sceneId}`)
-      .then((r) => setScene(r.data))
+      .then((r) => {
+        setScene(r.data);
+        setSceneStatus(r.data.scene_status ?? 'on_hold');
+        setWriterMemo(r.data.writer_memo ?? '');
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'error'));
   }, [params.sceneId]);
+
+  const saveReview = async () => {
+    const res = await apiPut<any>(`/scenes/${params.sceneId}/review`, {
+      scene_status: sceneStatus,
+      writer_memo: writerMemo
+    });
+    setScene(res.data);
+    setMessage('장면 상태와 메모를 저장했습니다.');
+  };
 
   if (error) return <p className="text-xs text-red-300">{error}</p>;
   if (!scene) return <div className="skeleton h-48" />;
@@ -39,6 +55,29 @@ export default function SceneDetailPage({ params }: { params: { sceneId: string 
           {scene.participants.map((p: string) => (
             <span key={p} className="rounded-full bg-panel px-3 py-1 text-xs">{p}</span>
           ))}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+        <h3 className="mb-2 text-sm font-semibold">작가 메모 / 장면 상태</h3>
+        <div className="grid gap-3">
+          <select
+            className="rounded-xl border border-border bg-panel px-3 py-2 text-sm"
+            value={sceneStatus}
+            onChange={(e) => setSceneStatus(e.target.value as 'adopted' | 'on_hold' | 'discarded')}
+          >
+            <option value="adopted">채택</option>
+            <option value="on_hold">보류</option>
+            <option value="discarded">폐기</option>
+          </select>
+          <textarea
+            className="rounded-xl border border-border bg-panel px-3 py-2 text-sm"
+            value={writerMemo}
+            onChange={(e) => setWriterMemo(e.target.value)}
+            placeholder="이 장면에 대한 작가 메모를 남겨두세요."
+          />
+          <button className="btn-primary w-fit text-xs" onClick={saveReview}>상태/메모 저장</button>
+          {message && <p className="text-xs text-emerald-300">{message}</p>}
         </div>
       </section>
 

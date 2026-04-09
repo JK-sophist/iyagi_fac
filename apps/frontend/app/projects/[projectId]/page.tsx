@@ -32,6 +32,22 @@ export default async function ProjectDetailPage({ params }: { params: { projectI
           <h3 className="mb-2 text-sm font-semibold">다음 장면 후보 / 최근 장면</h3>
           <p className="text-xs text-slate-400">세션이 시작되면 이 패널에서 후보 및 최근 장면을 확인합니다.</p>
         </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h3 className="mb-2 text-sm font-semibold">작가 도구</h3>
+          <p className="text-xs text-slate-400">자유 메모를 남기고 현재 프로젝트를 Markdown/TXT로 내보낼 수 있습니다.</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <Link href={`/projects/${params.projectId}/writer`} className="rounded-lg bg-panel px-3 py-2">
+              작가 메모 열기
+            </Link>
+            <a href={`http://localhost:8000/api/projects/${params.projectId}/export?format=markdown`} className="rounded-lg bg-panel px-3 py-2">
+              Markdown 내보내기
+            </a>
+            <a href={`http://localhost:8000/api/projects/${params.projectId}/export?format=txt`} className="rounded-lg bg-panel px-3 py-2">
+              TXT 내보내기
+            </a>
+          </div>
+        </div>
       </div>
     </section>
   );
