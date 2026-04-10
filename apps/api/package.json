@@ -1,0 +1,16 @@
+{
+  "name": "@agent-company-os/api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@agent-company-os/agents": "1.0.0",
+    "@agent-company-os/providers": "1.0.0",
+    "@agent-company-os/storage": "1.0.0",
+    "@agent-company-os/orchestrator": "1.0.0"
+  }
+}
