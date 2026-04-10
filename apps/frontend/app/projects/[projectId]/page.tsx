@@ -7,6 +7,7 @@ export default async function ProjectDetailPage({ params }: { params: { projectI
   const project = await apiGet<any>(`/projects/${params.projectId}`);
   const latestSessionId = project.data.session_ids?.[project.data.session_ids.length - 1];
   const latestSession = latestSessionId ? await apiGet<any>(`/sessions/${latestSessionId}`) : null;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
 
   return (
     <section className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
@@ -58,10 +59,10 @@ export default async function ProjectDetailPage({ params }: { params: { projectI
             <Link href={`/projects/${params.projectId}/writer`} className="rounded-lg bg-panel px-3 py-2">
               작가 메모 열기
             </Link>
-            <a href={`http://localhost:8000/api/projects/${params.projectId}/export?format=markdown`} className="rounded-lg bg-panel px-3 py-2">
+            <a href={`${apiBase}/projects/${params.projectId}/export?format=markdown`} className="rounded-lg bg-panel px-3 py-2">
               Markdown 내보내기
             </a>
-            <a href={`http://localhost:8000/api/projects/${params.projectId}/export?format=txt`} className="rounded-lg bg-panel px-3 py-2">
+            <a href={`${apiBase}/projects/${params.projectId}/export?format=txt`} className="rounded-lg bg-panel px-3 py-2">
               TXT 내보내기
             </a>
           </div>

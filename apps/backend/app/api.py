@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+import json
+from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
 
@@ -25,6 +27,7 @@ from app.services.simulation import (
 KST = ZoneInfo("Asia/Seoul")
 
 router = APIRouter(prefix="/api")
+DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "store.json"
 
 
 class Store:
@@ -45,6 +48,35 @@ generator = SceneCandidateGenerator(provider=provider, participant_selector=sele
 executor = SceneExecutor(rule_engine=RuleEngine())
 stop_eval = StopConditionEvaluator()
 orchestrator = SessionFlowOrchestrator(generator=generator, executor=executor, stop_evaluator=stop_eval)
+
+
+def _engine_state_snapshot(session: dict) -> dict:
+    state = session["engine_state"]
+    return {
+        "scene_no": state.scene_no,
+        "flags": dict(state.flags),
+        "narrative_scores": dict(state.narrative_scores),
+        "stop_reason": state.stop_reason,
+    }
+
+
+def save_store() -> None:
+    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "projects": store.projects,
+        "characters": store.characters,
+        "sessions": {
+            sid: {
+                **{k: v for k, v in session.items() if k != "engine_state"},
+                "engine_state_snapshot": _engine_state_snapshot(session),
+            }
+            for sid, session in store.sessions.items()
+        },
+        "scenes": store.scenes,
+        "checkpoints": store.checkpoints,
+        "writer_memos": store.writer_memos,
+    }
+    DATA_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def ok(data: Any, warnings: list[str] | None = None, stop_reason: str | None = None) -> dict:
@@ -87,6 +119,7 @@ def create_project(body: CreateProjectRequest) -> dict:
         "writer_memo_ids": [],
         "created_at": datetime.now(KST).isoformat(),
     }
+    save_store()
     return ok(store.projects[project_id])
 
 
@@ -121,6 +154,7 @@ def create_world_setting(project_id: str, body: WorldSettingRequest) -> dict:
         "rules": body.rules,
     }
     project["world_settings"].append(item)
+    save_store()
     return ok(item)
 
 
@@ -146,6 +180,7 @@ def create_ending_goal(project_id: str, body: EndingGoalRequest) -> dict:
         "ending_vectors": body.ending_vectors,
     }
     project["ending_goals"].append(item)
+    save_store()
     return ok(item)
 
 
@@ -192,6 +227,7 @@ def create_character(project_id: str, body: CharacterCreateRequest) -> dict:
     }
     store.characters[character_id] = character
     project["character_ids"].append(character_id)
+    save_store()
     return ok(character)
 
 
@@ -232,6 +268,7 @@ def update_character(character_id: str, body: CharacterUpdateRequest) -> dict:
         value = getattr(body, key)
         if value is not None:
             character[key] = value
+    save_store()
     return ok(character)
 
 
@@ -249,6 +286,7 @@ def archive_character(character_id: str) -> dict:
     if not character:
         fail("character_not_found", "Character not found", 404)
     character["is_archived"] = True
+    save_store()
     return ok(character, warnings=["Archived character will be excluded from new scene participants."])
 
 
@@ -263,6 +301,7 @@ def create_introduce_plan(character_id: str, body: IntroducePlanRequest) -> dict
     if not character:
         fail("character_not_found", "Character not found", 404)
     character["effective_from_scene_no"] = body.planned_scene_no
+    save_store()
     return ok({"character_id": character_id, "planned_scene_no": body.planned_scene_no, "note": body.note})
 
 
@@ -288,6 +327,7 @@ def create_relationship(project_id: str, body: RelationshipRequest) -> dict:
     rel = body.model_dump()
     rel["id"] = str(uuid.uuid4())
     project["relationships"].append(rel)
+    save_store()
     return ok(rel)
 
 
@@ -304,6 +344,7 @@ def update_relationship(project_id: str, body: RelationshipRequest) -> dict:
             break
     if not updated:
         fail("relationship_not_found", "Relationship not found", 404)
+    save_store()
     return ok(updated)
 
 
@@ -352,6 +393,36 @@ def build_engine_state(project_id: str, session_id: str) -> SessionState:
     return SessionState(session_id=session_id, project_id=project_id, characters=chars, relationships=rels)
 
 
+def load_store() -> None:
+    if not DATA_FILE.exists():
+        return
+    raw = json.loads(DATA_FILE.read_text(encoding="utf-8"))
+    store.projects = raw.get("projects", {})
+    store.characters = raw.get("characters", {})
+    store.scenes = raw.get("scenes", {})
+    store.checkpoints = raw.get("checkpoints", {})
+    store.writer_memos = raw.get("writer_memos", {})
+    loaded_sessions: dict[str, dict] = {}
+    for sid, session in raw.get("sessions", {}).items():
+        hydrated = dict(session)
+        snapshot = hydrated.pop("engine_state_snapshot", {})
+        state = build_engine_state(hydrated["project_id"], sid)
+        state.scene_no = snapshot.get("scene_no", state.scene_no)
+        state.flags = snapshot.get("flags", state.flags)
+        state.narrative_scores.update(snapshot.get("narrative_scores", {}))
+        state.stop_reason = snapshot.get("stop_reason")
+        hydrated.setdefault("candidate_cache", [])
+        hydrated.setdefault("checkpoint_ids", [])
+        hydrated.setdefault("scene_ids", [])
+        hydrated.setdefault("manual_scene_goal", None)
+        hydrated["engine_state"] = state
+        loaded_sessions[sid] = hydrated
+    store.sessions = loaded_sessions
+
+
+load_store()
+
+
 def summarize_goal_conflicts(session: dict) -> list[dict]:
     conflicts: list[dict] = []
     for item in session.get("candidate_cache", []):
@@ -397,6 +468,7 @@ def create_session(project_id: str, body: CreateSessionRequest) -> dict:
     }
     store.sessions[session_id] = session
     project["session_ids"].append(session_id)
+    save_store()
     return ok({k: v for k, v in session.items() if k != "engine_state"}, stop_reason=session["stopped_reason"])
 
 
@@ -437,6 +509,7 @@ def generate_scene_candidates(session_id: str) -> dict:
     ]
     session["candidate_cache"] = payload
     session["stopped_reason"] = "awaiting_user_choice"
+    save_store()
     return ok({"items": payload}, stop_reason=session["stopped_reason"])
 
 
@@ -482,6 +555,7 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
     session["scene_ids"].append(scene_id)
     session["manual_scene_goal"] = None
     session["stopped_reason"] = session["engine_state"].stop_reason or "user_decision_required"
+    save_store()
     return ok(scene_obj, stop_reason=session["stopped_reason"], warnings=["Scene executed. System stopped for user approval."])
 
 
@@ -516,6 +590,7 @@ def update_scene_review(scene_id: str, body: SceneReviewUpdateRequest) -> dict:
         scene["scene_status"] = body.scene_status
     if body.writer_memo is not None:
         scene["writer_memo"] = body.writer_memo
+    save_store()
     return ok(scene)
 
 
@@ -530,6 +605,7 @@ def set_manual_scene_goal(session_id: str, body: ManualSceneGoalRequest) -> dict
     if not session:
         fail("session_not_found", "Session not found", 404)
     session["manual_scene_goal"] = {"goal": body.goal, "note": body.note}
+    save_store()
     return ok({"session_id": session_id, "manual_scene_goal": session["manual_scene_goal"]})
 
 
@@ -562,6 +638,7 @@ def create_writer_memo(project_id: str, body: WriterMemoCreateRequest) -> dict:
     }
     store.writer_memos[memo_id] = memo
     project["writer_memo_ids"].append(memo_id)
+    save_store()
     return ok(memo)
 
 
@@ -629,6 +706,7 @@ def create_checkpoint(session_id: str, body: CheckpointCreateRequest) -> dict:
     }
     store.checkpoints[checkpoint_id] = cp
     session["checkpoint_ids"].append(checkpoint_id)
+    save_store()
     return ok(cp)
 
 
@@ -653,6 +731,7 @@ def restore_checkpoint(checkpoint_id: str) -> dict:
     session["stopped_reason"] = cp["snapshot_json"]["stop_reason"]
     session["engine_state"].flags = dict(cp["snapshot_json"]["flags"])
     session["engine_state"].narrative_scores.update(cp["snapshot_json"]["scores"])
+    save_store()
     return ok({"restored_session_id": session["id"], "checkpoint_id": checkpoint_id}, stop_reason=session["stopped_reason"])
 
 
@@ -688,6 +767,7 @@ def branch_from_checkpoint(checkpoint_id: str, body: BranchRequest) -> dict:
     }
     store.sessions[new_session_id] = session
     store.projects[parent["project_id"]]["session_ids"].append(new_session_id)
+    save_store()
     return ok({k: v for k, v in session.items() if k != "engine_state"})
 
 
@@ -770,6 +850,7 @@ def apply_settings_change(session_id: str, body: ApplySettingsChangeRequest) -> 
     elif body.mode == "overwrite_current_session":
         warnings.append("현재 세션 overwrite 모드는 과거 일관성 훼손 위험이 있습니다.")
 
+    save_store()
     return ok(
         {
             "applied": True,

@@ -30,3 +30,7 @@
 - 실행 후 항상 사용자 선택 대기
 - 과거 장면은 immutable
 - 설정 변경은 기본적으로 이후 장면부터 반영
+
+## 저장 위치
+- 백엔드 데이터 파일: `apps/backend/data/store.json`
+- 저장 대상: projects, characters, relationships, sessions, scenes, checkpoints, writer_memos

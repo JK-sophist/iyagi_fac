@@ -100,6 +100,7 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
               placeholder="보조 메모 (선택)"
             />
             <button className="btn-secondary text-xs" onClick={saveManualGoal}>목표 저장</button>
+            <Link href={`/sessions/${params.sessionId}/checkpoints`} className="btn-secondary text-xs text-center">체크포인트 화면으로 이동</Link>
             {session?.manual_scene_goal && (
               <p className="text-xs text-indigo-300">
                 저장됨: {session.manual_scene_goal.goal}

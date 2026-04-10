@@ -95,11 +95,9 @@ export default function SceneDetailPage({ params }: { params: { sceneId: string 
       </section>
 
       <div className="flex flex-wrap gap-2 text-xs">
-        <button className="rounded-lg bg-emerald-500/20 px-3 py-2 text-emerald-300">이 장면 채택</button>
-        <button className="rounded-lg bg-amber-500/20 px-3 py-2 text-amber-300">다시 실행</button>
-        <button className="rounded-lg bg-panel px-3 py-2">다른 후보 보기</button>
-        <button className="rounded-lg bg-indigo-500/20 px-3 py-2 text-indigo-300">현재 시점 저장</button>
-        <Link href="/projects" className="rounded-lg bg-red-500/20 px-3 py-2 text-red-300">세션 종료</Link>
+        <Link href={`/sessions/${scene.session_id}`} className="rounded-lg bg-panel px-3 py-2">세션 진행으로 돌아가기</Link>
+        <Link href={`/sessions/${scene.session_id}/checkpoints`} className="rounded-lg bg-indigo-500/20 px-3 py-2 text-indigo-300">체크포인트/분기 열기</Link>
+        <Link href="/projects" className="rounded-lg bg-red-500/20 px-3 py-2 text-red-300">프로젝트 목록</Link>
       </div>
     </section>
   );

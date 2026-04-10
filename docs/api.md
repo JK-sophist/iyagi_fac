@@ -18,6 +18,7 @@ Base path: `/api`
 - 후보 장면은 `goal_conflicts`, `active_motives`, `scheme_opportunities`를 포함한다.
 - 세션 조회는 `current_major_goal_conflicts` 요약을 포함한다.
 - export는 장면 상태/작가 메모/직접 장면 목표를 포함한다.
+- mutation은 `apps/backend/data/store.json`에 즉시 저장되어 서버 재시작 후에도 유지된다.
 
 ## 구현 엔드포인트
 1. `POST /projects`

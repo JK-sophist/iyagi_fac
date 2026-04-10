@@ -24,6 +24,18 @@
 7. 자유 메모 저장
 8. Markdown/TXT export
 
+## 저장 방식
+
+- 백엔드는 in-memory 상태를 `apps/backend/data/store.json` 파일로 즉시 동기화합니다.
+- 서버 재시작 후에도 아래 데이터가 유지됩니다.
+  - projects
+  - characters
+  - relationships
+  - sessions
+  - scenes
+  - checkpoints
+  - writer_memos
+
 ## 저장소 구조
 
 - `apps/backend` — FastAPI API + simulation engine + LLM provider abstraction
