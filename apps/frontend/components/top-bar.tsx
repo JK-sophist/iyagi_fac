@@ -9,10 +9,7 @@ export function TopBar({ projectName, currentSession }: { projectName?: string; 
         <p className="text-[11px] uppercase tracking-wide text-slate-500">현재 세션</p>
         <p className="text-sm">{currentSession ?? '-'}</p>
       </div>
-      <div>
-        <p className="text-[11px] uppercase tracking-wide text-slate-500">남은 포인트</p>
-        <p className="text-sm text-emerald-300">120</p>
-      </div>
+      <p className="text-xs text-slate-400">개인용 작가 워크벤치 · 자동 결말/자동 챕터 없음</p>
     </header>
   );
 }

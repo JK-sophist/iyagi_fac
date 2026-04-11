@@ -35,6 +35,7 @@
   - scenes
   - checkpoints
   - writer_memos
+- `export`(Markdown/TXT)는 **사용자 출력본** 생성 기능이며, 내부 작업 상태 저장(store.json)과는 별개입니다.
 
 ## 저장소 구조
 

@@ -3,8 +3,7 @@ import Link from 'next/link';
 export function SideNavigation() {
   const nav = [
     { href: '/projects', label: '프로젝트' },
-    { href: '/projects/new', label: '새 프로젝트' },
-    { href: '/sessions/demo/checkpoints', label: '체크포인트(예시)' }
+    { href: '/projects/new', label: '새 프로젝트' }
   ];
 
   return (

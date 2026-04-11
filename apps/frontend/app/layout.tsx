@@ -5,7 +5,7 @@ import { TopBar } from '@/components/top-bar';
 
 export const metadata: Metadata = {
   title: 'Iyagi Workbench',
-  description: '반자동 서사 시뮬레이터 UX MVP'
+  description: '개인용 작가 워크벤치'
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

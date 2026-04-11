@@ -73,6 +73,7 @@ export default function SceneDetailPage({ params }: { params: { sceneId: string 
 
       <section className="rounded-2xl border border-border bg-card p-4 shadow-soft">
         <h3 className="mb-2 text-sm font-semibold">작가 메모 / 장면 상태</h3>
+        <p className="mb-2 text-xs text-slate-400">이 장면을 채택/보류/폐기 중 하나로 정리하고, 다음 분기 판단을 위한 메모를 남기세요.</p>
         <div className="grid gap-3">
           <select
             className="rounded-xl border border-border bg-panel px-3 py-2 text-sm"

@@ -34,3 +34,4 @@
 ## 저장 위치
 - 백엔드 데이터 파일: `apps/backend/data/store.json`
 - 저장 대상: projects, characters, relationships, sessions, scenes, checkpoints, writer_memos
+- Markdown/TXT export는 저장 파일 대체가 아니라, 사용자용 결과 출력이다.

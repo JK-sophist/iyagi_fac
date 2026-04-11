@@ -36,6 +36,7 @@ NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api npm run dev
 백엔드는 인메모리 + JSON persistence를 사용한다.
 - 저장 파일: `apps/backend/data/store.json`
 - 서버 재시작 후에도 projects/characters/relationships/sessions/scenes/checkpoints/writer_memos 유지
+- Markdown/TXT export는 공유/검토용 출력이며, 내부 저장은 계속 `store.json`이 담당
 
 ## 5) 실제 사용 흐름 (Codex 추가 지시 없이 가능)
 1. `/projects/new` 프로젝트 생성

@@ -81,12 +81,12 @@ export default function SessionProgressPage({ params }: { params: { sessionId: s
               <h2 className={typography.sectionHeading}>다음 장면 후보 3개</h2>
               <button className="btn-primary text-xs" onClick={generateCandidates}>다음 후보 보기</button>
             </div>
-            <p className="mt-2 text-xs text-slate-400">후보 제안과 실행은 분리되어 있으며, 실행 후 반드시 사용자 승인 대기 상태로 멈춥니다.</p>
+            <p className="mt-2 text-xs text-slate-400">1) 후보 생성 → 2) 후보 선택 실행 → 3) 장면 상세에서 상태/메모 저장 순서로 사용하세요. 실행 후 시스템은 자동 진행하지 않고 멈춥니다.</p>
           </div>
 
           <div className="card-shell space-y-3 p-5">
             <h3 className={typography.cardTitle}>직접 장면 목표 입력</h3>
-            <p className="text-xs text-slate-400">AI 추천과 별개로 작가가 원하는 목표를 먼저 기록할 수 있습니다.</p>
+            <p className="text-xs text-slate-400">AI 추천과 별개로, 이번 장면에서 반드시 다루고 싶은 목표를 먼저 적어두세요.</p>
             <input
               value={manualGoal}
               onChange={(e) => setManualGoal(e.target.value)}
