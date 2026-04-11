@@ -5,7 +5,7 @@ from app.services.simulation.scene_candidate_generator import SceneCandidateGene
 from app.services.simulation.scene_executor import SceneExecutor
 from app.services.simulation.session_flow_orchestrator import SessionFlowOrchestrator
 from app.services.simulation.stop_condition_evaluator import StopConditionEvaluator
-from app.services.simulation.types import CharacterState, RelationshipState, SessionState
+from app.services.simulation.types import CharacterState, RelationshipState, SceneCandidate, SessionState
 
 
 __all__ = [
@@ -18,5 +18,6 @@ __all__ = [
     "StopConditionEvaluator",
     "CharacterState",
     "RelationshipState",
+    "SceneCandidate",
     "SessionState",
 ]
