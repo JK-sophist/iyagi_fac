@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 
 import { apiGet, apiPost } from '@/lib/api';
@@ -21,10 +22,7 @@ export default function WriterWorkbenchPage({ params }: { params: { projectId: s
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const tags = tagInput
-      .split(',')
-      .map((x) => x.trim())
-      .filter(Boolean);
+    const tags = tagInput.split(',').map((x) => x.trim()).filter(Boolean);
     await apiPost(`/projects/${params.projectId}/writer-memos`, { content, tags });
     setContent('');
     setTagInput('');
@@ -34,6 +32,11 @@ export default function WriterWorkbenchPage({ params }: { params: { projectId: s
 
   return (
     <section className="space-y-4">
+      <div className="flex flex-wrap gap-2 text-xs">
+        <Link href={`/projects/${params.projectId}`} className="rounded-lg bg-panel px-3 py-2">프로젝트로 돌아가기</Link>
+        <Link href="/projects" className="rounded-lg bg-panel px-3 py-2">프로젝트 목록</Link>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
         <h1 className="mb-2 text-lg font-semibold">작가 자유 메모</h1>
         <p className="text-xs text-slate-400">아이디어, 떡밥, 설정 충돌 후보를 자유롭게 기록해두세요.</p>
@@ -41,19 +44,9 @@ export default function WriterWorkbenchPage({ params }: { params: { projectId: s
 
       <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-4 shadow-soft">
         <label className="block text-xs text-slate-300">메모</label>
-        <textarea
-          className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm"
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          required
-        />
+        <textarea className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm" value={content} onChange={(e) => setContent(e.target.value)} required />
         <label className="mt-3 block text-xs text-slate-300">태그 (쉼표 구분)</label>
-        <input
-          className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm"
-          value={tagInput}
-          onChange={(e) => setTagInput(e.target.value)}
-          placeholder="ex) chapter2, foreshadowing"
-        />
+        <input className="mt-1 w-full rounded-xl border border-border bg-panel px-3 py-2 text-sm" value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="ex) chapter2, foreshadowing" />
         <button className="mt-3 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-slate-950">메모 저장</button>
         {message && <p className="mt-2 text-xs text-emerald-300">{message}</p>}
       </form>

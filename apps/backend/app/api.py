@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import json
 import uuid
 from datetime import datetime
-import json
 from pathlib import Path
 from typing import Any, Literal
 from zoneinfo import ZoneInfo
@@ -448,6 +448,35 @@ def summarize_goal_conflicts(session: dict) -> list[dict]:
     return conflicts
 
 
+def delete_session_records(session_id: str, *, remove_from_project: bool = True) -> None:
+    session = store.sessions.get(session_id)
+    if not session:
+        fail("session_not_found", "Session not found", 404)
+    for scene_id in list(session.get("scene_ids", [])):
+        store.scenes.pop(scene_id, None)
+    for checkpoint_id in list(session.get("checkpoint_ids", [])):
+        store.checkpoints.pop(checkpoint_id, None)
+    if remove_from_project:
+        project = store.projects.get(session["project_id"])
+        if project:
+            project["session_ids"] = [sid for sid in project.get("session_ids", []) if sid != session_id]
+    store.sessions.pop(session_id, None)
+
+
+def delete_project_records(project_id: str) -> None:
+    project = store.projects.get(project_id)
+    if not project:
+        fail("project_not_found", "Project not found", 404)
+    for session_id in list(project.get("session_ids", [])):
+        if session_id in store.sessions:
+            delete_session_records(session_id, remove_from_project=False)
+    for character_id in list(project.get("character_ids", [])):
+        store.characters.pop(character_id, None)
+    for memo_id in list(project.get("writer_memo_ids", [])):
+        store.writer_memos.pop(memo_id, None)
+    store.projects.pop(project_id, None)
+
+
 @router.post("/projects/{project_id}/sessions")
 def create_session(project_id: str, body: CreateSessionRequest) -> dict:
     project = store.projects.get(project_id)
@@ -482,6 +511,20 @@ def get_session(session_id: str) -> dict:
     data["scene_count"] = len(session["scene_ids"])
     data["current_major_goal_conflicts"] = summarize_goal_conflicts(session)
     return ok(data, stop_reason=session["stopped_reason"])
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(session_id: str) -> dict:
+    delete_session_records(session_id)
+    save_store()
+    return ok({"deleted_session_id": session_id})
+
+
+@router.delete("/projects/{project_id}")
+def delete_project(project_id: str) -> dict:
+    delete_project_records(project_id)
+    save_store()
+    return ok({"deleted_project_id": project_id})
 
 
 @router.post("/sessions/{session_id}/scene-candidates")

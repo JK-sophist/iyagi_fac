@@ -1,12 +1,25 @@
 import Link from 'next/link';
 
+import { ProjectSessionManager } from '@/components/project-session-manager';
 import { ProjectSummaryPanel } from '@/components/project-summary-panel';
 import { apiGet } from '@/lib/api';
 
 export default async function ProjectDetailPage({ params }: { params: { projectId: string } }) {
   const project = await apiGet<any>(`/projects/${params.projectId}`);
-  const latestSessionId = project.data.session_ids?.[project.data.session_ids.length - 1];
-  const latestSession = latestSessionId ? await apiGet<any>(`/sessions/${latestSessionId}`) : null;
+  const sessionIds: string[] = project.data.session_ids ?? [];
+  const sessions = (
+    await Promise.all(
+      sessionIds.map(async (sessionId) => {
+        try {
+          const res = await apiGet<any>(`/sessions/${sessionId}`);
+          return res.data;
+        } catch {
+          return null;
+        }
+      })
+    )
+  ).filter(Boolean);
+  const latestSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
 
   return (
@@ -20,15 +33,23 @@ export default async function ProjectDetailPage({ params }: { params: { projectI
             <Link className="rounded-lg bg-panel px-3 py-2" href={`/projects/${params.projectId}/relationships`}>관계도 편집</Link>
           </div>
         </div>
+        <ProjectSessionManager projectId={params.projectId} sessions={sessions as any[]} />
       </div>
 
       <div className="space-y-4">
         <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
           <h3 className="mb-2 text-sm font-semibold">현재 세션 상태</h3>
           <p className="text-xs text-slate-400">아래 버튼으로 세션을 시작하면 후보 생성 → 장면 실행 → 장면 검토 → 체크포인트 흐름으로 진행됩니다.</p>
-          <Link href={`/projects/${params.projectId}/sessions/new`} className="mt-3 inline-block rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-slate-950">
-            세션 시작
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <Link href={`/projects/${params.projectId}/sessions/new`} className="rounded-xl bg-accent px-3 py-2 font-semibold text-slate-950">
+              세션 시작
+            </Link>
+            {latestSession && (
+              <Link href={`/sessions/${latestSession.id}`} className="rounded-xl bg-panel px-3 py-2">
+                최근 세션 이어서 하기
+              </Link>
+            )}
+          </div>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
@@ -38,9 +59,9 @@ export default async function ProjectDetailPage({ params }: { params: { projectI
 
         <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
           <h3 className="mb-2 text-sm font-semibold">인물 목표 / 충돌 구조</h3>
-          {latestSession?.data?.current_major_goal_conflicts?.length ? (
+          {latestSession?.current_major_goal_conflicts?.length ? (
             <ul className="space-y-2 text-xs">
-              {latestSession.data.current_major_goal_conflicts.map((conflict: any, idx: number) => (
+              {latestSession.current_major_goal_conflicts.map((conflict: any, idx: number) => (
                 <li key={`${conflict.actor}-${idx}`} className="rounded-lg bg-panel px-3 py-2">
                   <p><strong>{conflict.actor}</strong>: {conflict.actor_goal}</p>
                   <p className="text-slate-400">충돌 대상: {conflict.rival} ({conflict.rival_goal})</p>

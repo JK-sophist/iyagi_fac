@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useEffect, useState } from 'react';
 
 import { HelpToggle, HelperText } from '@/components/form-help';
@@ -66,9 +67,7 @@ export default function RelationshipsPage({ params }: { params: { projectId: str
       setMessage('수정할 관계의 두 인물을 서로 다르게 선택해 주세요.');
       return;
     }
-    const exists = existingRelations.some(
-      (r) => r.from_character_id === fromId && r.to_character_id === toId
-    );
+    const exists = existingRelations.some((r) => r.from_character_id === fromId && r.to_character_id === toId);
     if (!exists) {
       setMessage('아직 저장된 관계가 없습니다. 먼저 "관계 처음 저장"을 눌러주세요.');
       return;
@@ -78,12 +77,7 @@ export default function RelationshipsPage({ params }: { params: { projectId: str
     await loadCharacters();
   };
 
-  const slider = (
-    label: string,
-    value: string,
-    setValue: (v: string) => void,
-    helper: string
-  ) => (
+  const slider = (label: string, value: string, setValue: (v: string) => void, helper: string) => (
     <label className="block rounded-xl border border-border bg-panel p-3 text-xs">
       <div className="mb-1 flex items-center justify-between">
         <span className="font-medium">{label}</span>
@@ -102,6 +96,11 @@ export default function RelationshipsPage({ params }: { params: { projectId: str
           <p className="text-xs text-slate-400">캐릭터를 선택해 관계 강도를 조정합니다.</p>
         </div>
         <HelpToggle show={showHelp} onToggle={() => setShowHelp((prev) => !prev)} />
+      </div>
+
+      <div className="flex flex-wrap gap-2 text-xs">
+        <Link href={`/projects/${params.projectId}`} className="rounded-lg bg-panel px-3 py-2">프로젝트로 돌아가기</Link>
+        <Link href="/projects" className="rounded-lg bg-panel px-3 py-2">프로젝트 목록</Link>
       </div>
 
       <form onSubmit={onCreate} className="rounded-2xl border border-border bg-card p-4 shadow-soft space-y-3">
