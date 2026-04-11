@@ -17,6 +17,7 @@ from app.services.simulation import (
     ParticipantSelector,
     RelationshipState,
     RuleEngine,
+    SceneCandidate,
     SceneCandidateGenerator,
     SceneExecutor,
     SessionFlowOrchestrator,
@@ -526,10 +527,21 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
     if not candidate_data:
         fail("candidate_not_found", "Call /scene-candidates first and choose valid candidate", 404)
 
-    candidates = orchestrator.suggest_candidates(session["engine_state"])
-    candidate = next((c for c in candidates if c.candidate_id == body.candidate_id), None)
-    if not candidate:
-        fail("candidate_execution_mismatch", "Candidate no longer valid", 409)
+    candidate = SceneCandidate(
+        candidate_id=candidate_data["candidate_id"],
+        scene_type=candidate_data["scene_type"],
+        title=candidate_data["title"],
+        participants=candidate_data["participants"],
+        location=candidate_data["location"],
+        objective=candidate_data["objective"],
+        why_now=candidate_data["why_now"],
+        predicted_effects=candidate_data.get("predicted_effects", {}),
+        risk_notes=candidate_data.get("risk_notes", []),
+        expected_stop_reason=candidate_data.get("expected_stop_reason", "user_decision_required"),
+        goal_conflicts=candidate_data.get("goal_conflicts", []),
+        active_motives=candidate_data.get("active_motives", []),
+        scheme_opportunities=candidate_data.get("scheme_opportunities", []),
+    )
 
     result = orchestrator.execute_selected_candidate(session["engine_state"], candidate)
     scene_id = str(uuid.uuid4())
