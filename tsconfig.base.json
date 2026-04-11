@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@agent-company-os/shared-types": ["packages/shared-types/src"],
+      "@agent-company-os/storage": ["packages/storage/src"],
+      "@agent-company-os/providers": ["packages/providers/src"],
+      "@agent-company-os/tools": ["packages/tools/src"],
+      "@agent-company-os/agents": ["packages/agents/src"],
+      "@agent-company-os/harness-runtime": ["packages/harness-runtime/src"],
+      "@agent-company-os/harness-eval": ["packages/harness-eval/src"],
+      "@agent-company-os/harness-risk": ["packages/harness-risk/src"],
+      "@agent-company-os/harness-revenue": ["packages/harness-revenue/src"],
+      "@agent-company-os/orchestrator": ["workers/orchestrator/src"]
+    }
+  }
+}
