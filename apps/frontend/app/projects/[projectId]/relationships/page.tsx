@@ -20,9 +20,11 @@ export default function RelationshipsPage({ params }: { params: { projectId: str
   const [betrayalRisk, setBetrayalRisk] = useState('0.2');
   const [sharedSecret, setSharedSecret] = useState('');
   const [message, setMessage] = useState('');
+  const [existingRelations, setExistingRelations] = useState<any[]>([]);
 
   const loadCharacters = async () => {
     const project = await apiGet<any>(`/projects/${params.projectId}`);
+    setExistingRelations(project.data.relationships ?? []);
     const ids = project.data.character_ids ?? [];
     const items = await Promise.all(ids.map((id: string) => apiGet<any>(`/characters/${id}`).then((r) => r.data).catch(() => null)));
     const valid = items.filter(Boolean);
@@ -55,7 +57,8 @@ export default function RelationshipsPage({ params }: { params: { projectId: str
       return;
     }
     await apiPost(`/projects/${params.projectId}/relationships`, payload);
-    setMessage('관계를 저장했습니다.');
+    setMessage('관계를 처음 저장했습니다.');
+    await loadCharacters();
   };
 
   const onUpdate = async () => {
@@ -63,8 +66,16 @@ export default function RelationshipsPage({ params }: { params: { projectId: str
       setMessage('수정할 관계의 두 인물을 서로 다르게 선택해 주세요.');
       return;
     }
+    const exists = existingRelations.some(
+      (r) => r.from_character_id === fromId && r.to_character_id === toId
+    );
+    if (!exists) {
+      setMessage('아직 저장된 관계가 없습니다. 먼저 "관계 처음 저장"을 눌러주세요.');
+      return;
+    }
     await apiPut(`/projects/${params.projectId}/relationships`, payload);
-    setMessage('관계를 업데이트했습니다.');
+    setMessage('기존 관계를 수정했습니다.');
+    await loadCharacters();
   };
 
   const slider = (
@@ -131,8 +142,8 @@ export default function RelationshipsPage({ params }: { params: { projectId: str
         </label>
 
         <div className="flex gap-2">
-          <button className="rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-slate-950">관계 저장</button>
-          <button type="button" className="rounded-xl bg-panel px-3 py-2 text-xs" onClick={onUpdate}>관계 업데이트</button>
+          <button className="rounded-xl bg-accent px-3 py-2 text-xs font-semibold text-slate-950">관계 처음 저장</button>
+          <button type="button" className="rounded-xl bg-panel px-3 py-2 text-xs" onClick={onUpdate}>기존 관계 수정</button>
         </div>
       </form>
 
