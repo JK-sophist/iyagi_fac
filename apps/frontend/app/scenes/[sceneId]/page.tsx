@@ -6,9 +6,15 @@ import { useEffect, useState } from 'react';
 import { SceneLogTabs } from '@/components/scene-log-tabs';
 import { apiGet, apiPut } from '@/lib/api';
 
+type SceneStatus = 'adopted' | 'on_hold' | 'discarded';
+
+function normalizeSceneStatus(value: unknown): SceneStatus {
+  return value === 'adopted' || value === 'discarded' || value === 'on_hold' ? value : 'on_hold';
+}
+
 export default function SceneDetailPage({ params }: { params: { sceneId: string } }) {
   const [scene, setScene] = useState<any>(null);
-  const [sceneStatus, setSceneStatus] = useState<'adopted' | 'on_hold' | 'discarded'>('on_hold');
+  const [sceneStatus, setSceneStatus] = useState<SceneStatus>('on_hold');
   const [writerMemo, setWriterMemo] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +23,7 @@ export default function SceneDetailPage({ params }: { params: { sceneId: string 
     apiGet<any>(`/scenes/${params.sceneId}`)
       .then((r) => {
         setScene(r.data);
-        setSceneStatus(r.data.scene_status ?? 'on_hold');
+        setSceneStatus(normalizeSceneStatus(r.data.scene_status));
         setWriterMemo(r.data.writer_memo ?? '');
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'error'));
@@ -29,6 +35,7 @@ export default function SceneDetailPage({ params }: { params: { sceneId: string 
       writer_memo: writerMemo
     });
     setScene(res.data);
+    setSceneStatus(normalizeSceneStatus(res.data.scene_status));
     setMessage('장면 상태와 메모를 저장했습니다.');
   };
 
@@ -78,7 +85,7 @@ export default function SceneDetailPage({ params }: { params: { sceneId: string 
           <select
             className="rounded-xl border border-border bg-panel px-3 py-2 text-sm"
             value={sceneStatus}
-            onChange={(e) => setSceneStatus(e.target.value as 'adopted' | 'on_hold' | 'discarded')}
+            onChange={(e) => setSceneStatus(e.target.value as SceneStatus)}
           >
             <option value="adopted">채택</option>
             <option value="on_hold">보류</option>

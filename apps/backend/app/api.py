@@ -549,7 +549,7 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
         "id": scene_id,
         "session_id": session_id,
         "scene_no": result.scene_no,
-        "scene_status": "pending",
+        "scene_status": "on_hold",
         "writer_memo": None,
         "manual_goal": session.get("manual_scene_goal"),
         "title": result.title,
@@ -672,7 +672,7 @@ def export_project(project_id: str, format: Literal["markdown", "txt"] = Query(d
         lines.append("[Scenes]")
         lines.extend(
             [
-                f"{scene['scene_no']}. {scene['title']} | status={scene.get('scene_status', 'pending')} | memo={scene.get('writer_memo') or '-'} | manual_goal={(scene.get('manual_goal') or {}).get('goal', '-')}"
+                f"{scene['scene_no']}. {scene['title']} | status={scene.get('scene_status', 'on_hold')} | memo={scene.get('writer_memo') or '-'} | manual_goal={(scene.get('manual_goal') or {}).get('goal', '-')}"
                 for scene in scenes
             ]
             or ["(none)"]
@@ -685,7 +685,7 @@ def export_project(project_id: str, format: Literal["markdown", "txt"] = Query(d
     lines.append("## Scenes")
     lines.extend(
         [
-            f"- Scene {scene['scene_no']}: **{scene['title']}** (`{scene.get('scene_status', 'pending')}`)\n  - memo: {scene.get('writer_memo') or '-'}\n  - manual_goal: {(scene.get('manual_goal') or {}).get('goal', '-')}"
+            f"- Scene {scene['scene_no']}: **{scene['title']}** (`{scene.get('scene_status', 'on_hold')}`)\n  - memo: {scene.get('writer_memo') or '-'}\n  - manual_goal: {(scene.get('manual_goal') or {}).get('goal', '-')}"
             for scene in scenes
         ]
         or ["- (none)"]
