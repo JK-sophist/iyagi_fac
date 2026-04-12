@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import json
+from typing import Any
+
+import httpx
+
+from app.config import settings
 from app.services.simulation.mock_provider import DeterministicMockProvider
 from app.services.simulation.participant_selector import ParticipantSelector
-from app.services.simulation.types import SceneCandidate, SessionState
+from app.services.simulation.types import CharacterState, SceneCandidate, SessionState
 
 
 class SceneCandidateGenerator:
@@ -12,6 +18,16 @@ class SceneCandidateGenerator:
 
     def generate(self, session: SessionState) -> list[SceneCandidate]:
         selected = self.participant_selector.select(session.characters, session.relationships)
+        if settings.openai_api_key_simulation:
+            try:
+                generated = self._generate_with_openai(session, selected)
+                if generated:
+                    return generated
+            except Exception:
+                pass
+        return self._generate_with_mock(session, selected)
+
+    def _generate_with_mock(self, session: SessionState, selected: list[CharacterState]) -> list[SceneCandidate]:
         participant_ids = [c.id for c in selected]
         participant_names = [c.name for c in selected]
 
@@ -78,3 +94,113 @@ class SceneCandidateGenerator:
                 )
             )
         return candidates
+
+    def _generate_with_openai(self, session: SessionState, selected: list[CharacterState]) -> list[SceneCandidate]:
+        participant_ids = [c.id for c in selected]
+        prompt = self._build_prompt(session, selected)
+        payload: dict[str, Any] = {
+            "model": settings.openai_model_scene_candidate,
+            "temperature": 0.9,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "너는 소설 작가를 돕는 서사 후보 생성기다. 반드시 JSON만 출력한다. "
+                        "후보는 3개이며 서로 다른 갈등 축을 가져야 한다. 각 후보는 scene_type, title, location, objective, why_now, "
+                        "goal_conflicts, active_motives, scheme_opportunities, predicted_effects, risk_notes 를 포함한다."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+        }
+        headers = {
+            "Authorization": f"Bearer {settings.openai_api_key_simulation}",
+            "Content-Type": "application/json",
+        }
+        if settings.openai_project_id_simulation:
+            headers["OpenAI-Project"] = settings.openai_project_id_simulation
+
+        with httpx.Client(timeout=settings.llm_timeout_seconds) as client:
+            response = client.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+        content = data["choices"][0]["message"]["content"]
+        parsed = json.loads(content)
+        raw_candidates = parsed.get("candidates") if isinstance(parsed, dict) else None
+        if not isinstance(raw_candidates, list) or not raw_candidates:
+            return []
+
+        normalized: list[SceneCandidate] = []
+        for idx, item in enumerate(raw_candidates[:3]):
+            if not isinstance(item, dict):
+                continue
+            scene_type = str(item.get("scene_type") or ["negotiation", "conflict", "discovery"][idx % 3])
+            title = str(item.get("title") or f"후보 장면 {idx + 1}")
+            location = str(item.get("location") or "불명")
+            objective = str(item.get("objective") or "목표 충돌이 드러나는 장면")
+            why_now = str(item.get("why_now") or "현재 목표와 관계 압력이 겹쳐 지금 충돌이 필요함")
+            goal_conflicts = item.get("goal_conflicts") if isinstance(item.get("goal_conflicts"), list) else []
+            active_motives = item.get("active_motives") if isinstance(item.get("active_motives"), list) else [
+                {
+                    "character": c.name,
+                    "surface_goal": c.surface_goal,
+                    "hidden_goal": c.hidden_goal,
+                    "short_term_goal": c.short_term_goal,
+                }
+                for c in selected
+            ]
+            scheme_opportunities = item.get("scheme_opportunities") if isinstance(item.get("scheme_opportunities"), list) else []
+            predicted_effects = item.get("predicted_effects") if isinstance(item.get("predicted_effects"), dict) else {}
+            risk_notes = item.get("risk_notes") if isinstance(item.get("risk_notes"), list) else ["후속 장면 전 관계 변화 재평가 필요"]
+            expected_stop_reason = str(item.get("expected_stop_reason") or "user_decision_required")
+
+            normalized.append(
+                SceneCandidate(
+                    candidate_id=f"cand_{session.scene_no + 1}_{idx + 1}",
+                    scene_type=scene_type,
+                    title=title,
+                    participants=participant_ids,
+                    location=location,
+                    objective=objective,
+                    why_now=why_now,
+                    predicted_effects=predicted_effects,
+                    risk_notes=[str(x) for x in risk_notes],
+                    expected_stop_reason=expected_stop_reason,
+                    goal_conflicts=[x for x in goal_conflicts if isinstance(x, dict)],
+                    active_motives=[x for x in active_motives if isinstance(x, dict)],
+                    scheme_opportunities=[str(x) for x in scheme_opportunities],
+                )
+            )
+        return normalized
+
+    def _build_prompt(self, session: SessionState, selected: list[CharacterState]) -> str:
+        relationship_lines = []
+        for rel in session.relationships[:12]:
+            a = next((c.name for c in session.characters if c.id == rel.from_character_id), rel.from_character_id)
+            b = next((c.name for c in session.characters if c.id == rel.to_character_id), rel.to_character_id)
+            relationship_lines.append(
+                f"- {a} -> {b}: trust={rel.trust}, tension={rel.tension}, hostility={rel.hostility}, dependency={rel.dependency}, betrayal_risk={rel.betrayal_risk}, shared_secret={rel.shared_secret or '-'}"
+            )
+
+        character_lines = []
+        for c in selected:
+            character_lines.append(
+                f"- {c.name}: surface_goal={c.surface_goal or '-'}, hidden_goal={c.hidden_goal or '-'}, short_term_goal={c.short_term_goal or '-'}, long_term_goal={c.long_term_goal or '-'}, fear_or_taboo={c.fear_or_taboo or '-'}, leverage={c.leverage or '-'}, secret={c.secret or '-'}"
+            )
+
+        return (
+            f"session_id={session.session_id}\n"
+            f"scene_no={session.scene_no}\n"
+            "selected_characters:\n"
+            + "\n".join(character_lines)
+            + "\nrelationships:\n"
+            + ("\n".join(relationship_lines) if relationship_lines else "- 관계 정보 없음")
+            + "\nrequirements:\n"
+            + "- 후보는 정확히 3개\n"
+            + "- 서로 다른 갈등축을 가져야 함\n"
+            + "- negotiation, conflict, discovery 중 장면 유형 분산\n"
+            + "- 목표 충돌과 계략 가능성이 분명해야 함\n"
+            + "- predicted_effects는 relationship_shift, secret_pressure를 포함하도록 노력\n"
+        )
