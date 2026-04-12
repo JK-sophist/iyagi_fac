@@ -10,17 +10,21 @@ class SceneExecutor:
 
     def execute(self, session: SessionState, execution_input: SceneExecutionInput) -> SceneResult:
         candidate = execution_input.candidate
+        participant_names = self._participant_names(session, candidate.participants)
 
         state_delta = self.rule_engine.apply(session, candidate)
         session.scene_no += 1
 
+        speaker_a = participant_names[0] if participant_names else "누군가"
+        speaker_b = participant_names[-1] if participant_names else speaker_a
+
         dialogue_log = [
-            f"{candidate.participants[0]}: 지금 결정을 미루면 손실이 커져.",
-            f"{candidate.participants[-1]}: 동의하지만 대가를 계산해야 해.",
+            f"{speaker_a}: 지금 결정을 미루면 손실이 커져.",
+            f"{speaker_b}: 동의하지만 대가를 계산해야 해.",
         ]
         action_log = [
-            f"location={candidate.location} 이동",
-            "핵심 자료 검증",
+            f"{candidate.location}로 이동해 상황을 확인함",
+            "핵심 자료와 관계 변화를 점검함",
         ]
         system_log = [
             f"scene_type={candidate.scene_type}",
@@ -38,3 +42,8 @@ class SceneExecutor:
             system_log=system_log,
             state_delta=state_delta,
         )
+
+    @staticmethod
+    def _participant_names(session: SessionState, participant_ids: list[str]) -> list[str]:
+        name_map = {char.id: char.name for char in session.characters}
+        return [name_map.get(pid, pid) for pid in participant_ids]
