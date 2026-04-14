@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 import httpx
@@ -10,21 +11,35 @@ from app.services.simulation.mock_provider import DeterministicMockProvider
 from app.services.simulation.participant_selector import ParticipantSelector
 from app.services.simulation.types import CharacterState, SceneCandidate, SessionState
 
+logger = logging.getLogger(__name__)
+
 
 class SceneCandidateGenerator:
     def __init__(self, provider: DeterministicMockProvider, participant_selector: ParticipantSelector) -> None:
         self.provider = provider
         self.participant_selector = participant_selector
+        self.last_source = "mock"
+        self.last_error: str | None = None
 
     def generate(self, session: SessionState) -> list[SceneCandidate]:
         selected = self.participant_selector.select(session.characters, session.relationships)
+        self.last_source = "mock"
+        self.last_error = None
         if settings.openai_api_key_simulation:
             try:
                 generated = self._generate_with_openai(session, selected)
                 if generated:
+                    self.last_source = "openai"
+                    logger.info("Scene candidates generated with OpenAI for session=%s", session.session_id)
                     return generated
-            except Exception:
-                pass
+                self.last_error = "OpenAI returned empty candidate list"
+                logger.warning("OpenAI candidate generation returned empty candidates for session=%s", session.session_id)
+            except Exception as exc:
+                self.last_error = str(exc)
+                logger.exception("OpenAI candidate generation failed for session=%s: %s", session.session_id, exc)
+                if getattr(settings, "require_openai_candidates", False):
+                    raise
+        logger.warning("Using mock fallback for session=%s reason=%s", session.session_id, self.last_error or "openai_disabled")
         return self._generate_with_mock(session, selected)
 
     def _generate_with_mock(self, session: SessionState, selected: list[CharacterState]) -> list[SceneCandidate]:
