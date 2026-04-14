@@ -93,6 +93,11 @@ def fail(code: str, message: str, status_code: int = 400) -> None:
     raise HTTPException(status_code=status_code, detail={"ok": False, "error": {"code": code, "message": message}})
 
 
+def build_participant_name_map(candidate: SceneCandidate, active_motives: list[dict]) -> dict[str, str]:
+    names = [m.get("character") for m in active_motives if isinstance(m, dict) and m.get("character")]
+    return {pid: (names[idx] if idx < len(names) else pid) for idx, pid in enumerate(candidate.participants)}
+
+
 class CreateProjectRequest(BaseModel):
     title: str
     description: str | None = None
@@ -135,6 +140,20 @@ def get_project(project_id: str) -> dict:
     if not project:
         fail("project_not_found", "Project not found", 404)
     return ok(project)
+
+
+@router.delete("/projects/{project_id}")
+def delete_project(project_id: str) -> dict:
+    project = store.projects.get(project_id)
+    if not project:
+        fail("project_not_found", "Project not found", 404)
+    for session_id in list(project.get("session_ids", [])):
+        delete_session_records(session_id, remove_from_project=False)
+    for memo_id in list(project.get("writer_memo_ids", [])):
+        store.writer_memos.pop(memo_id, None)
+    store.projects.pop(project_id, None)
+    save_store()
+    return ok({"deleted_project_id": project_id})
 
 
 class WorldSettingRequest(BaseModel):
@@ -200,14 +219,8 @@ class CharacterCreateRequest(BaseModel):
     writer_note: str | None = None
 
 
-@router.post("/projects/{project_id}/characters")
-def create_character(project_id: str, body: CharacterCreateRequest) -> dict:
-    project = store.projects.get(project_id)
-    if not project:
-        fail("project_not_found", "Project not found", 404)
-
-    character_id = str(uuid.uuid4())
-    character = {
+def make_character_record(character_id: str, body: CharacterCreateRequest, project_id: str | None = None) -> dict:
+    return {
         "id": character_id,
         "project_id": project_id,
         "name": body.name,
@@ -226,10 +239,51 @@ def create_character(project_id: str, body: CharacterCreateRequest) -> dict:
         "speaking_style_note": body.speaking_style_note,
         "writer_note": body.writer_note,
     }
+
+
+@router.get("/characters")
+def list_characters() -> dict:
+    return ok({"items": list(store.characters.values())})
+
+
+@router.post("/characters")
+def create_global_character(body: CharacterCreateRequest) -> dict:
+    character_id = str(uuid.uuid4())
+    character = make_character_record(character_id, body, project_id=None)
+    store.characters[character_id] = character
+    save_store()
+    return ok(character)
+
+
+@router.post("/projects/{project_id}/characters")
+def create_character(project_id: str, body: CharacterCreateRequest) -> dict:
+    project = store.projects.get(project_id)
+    if not project:
+        fail("project_not_found", "Project not found", 404)
+    character_id = str(uuid.uuid4())
+    character = make_character_record(character_id, body, project_id=project_id)
     store.characters[character_id] = character
     project["character_ids"].append(character_id)
     save_store()
     return ok(character)
+
+
+class CharacterLinkRequest(BaseModel):
+    character_id: str
+
+
+@router.post("/projects/{project_id}/characters/link")
+def link_character_to_project(project_id: str, body: CharacterLinkRequest) -> dict:
+    project = store.projects.get(project_id)
+    if not project:
+        fail("project_not_found", "Project not found", 404)
+    character = store.characters.get(body.character_id)
+    if not character:
+        fail("character_not_found", "Character not found", 404)
+    if body.character_id not in project["character_ids"]:
+        project["character_ids"].append(body.character_id)
+        save_store()
+    return ok({"project_id": project_id, "character_id": body.character_id})
 
 
 class CharacterUpdateRequest(BaseModel):
@@ -356,6 +410,7 @@ class CreateSessionRequest(BaseModel):
 
 
 def build_engine_state(project_id: str, session_id: str) -> SessionState:
+    project = store.projects[project_id]
     chars = [
         CharacterState(
             id=c["id"],
@@ -372,10 +427,9 @@ def build_engine_state(project_id: str, session_id: str) -> SessionState:
             speaking_style_note=c.get("speaking_style_note") or "",
             writer_note=c.get("writer_note") or "",
         )
-        for c in store.characters.values()
-        if c["project_id"] == project_id
+        for cid in project.get("character_ids", [])
+        if (c := store.characters.get(cid))
     ]
-    project = store.projects[project_id]
     rels = [
         RelationshipState(
             from_character_id=r["from_character_id"],
@@ -463,20 +517,6 @@ def delete_session_records(session_id: str, *, remove_from_project: bool = True)
     store.sessions.pop(session_id, None)
 
 
-def delete_project_records(project_id: str) -> None:
-    project = store.projects.get(project_id)
-    if not project:
-        fail("project_not_found", "Project not found", 404)
-    for session_id in list(project.get("session_ids", [])):
-        if session_id in store.sessions:
-            delete_session_records(session_id, remove_from_project=False)
-    for character_id in list(project.get("character_ids", [])):
-        store.characters.pop(character_id, None)
-    for memo_id in list(project.get("writer_memo_ids", [])):
-        store.writer_memos.pop(memo_id, None)
-    store.projects.pop(project_id, None)
-
-
 @router.post("/projects/{project_id}/sessions")
 def create_session(project_id: str, body: CreateSessionRequest) -> dict:
     project = store.projects.get(project_id)
@@ -520,19 +560,15 @@ def delete_session(session_id: str) -> dict:
     return ok({"deleted_session_id": session_id})
 
 
-@router.delete("/projects/{project_id}")
-def delete_project(project_id: str) -> dict:
-    delete_project_records(project_id)
-    save_store()
-    return ok({"deleted_project_id": project_id})
-
-
 @router.post("/sessions/{session_id}/scene-candidates")
 def generate_scene_candidates(session_id: str) -> dict:
     session = store.sessions.get(session_id)
     if not session:
         fail("session_not_found", "Session not found", 404)
     candidates = orchestrator.suggest_candidates(session["engine_state"])
+    warnings: list[str] = [f"candidate_source={getattr(generator, 'last_source', 'mock')}"]
+    if getattr(generator, 'last_error', None):
+        warnings.append(f"openai_fallback={generator.last_error}")
     payload = [
         {
             "candidate_id": c.candidate_id,
@@ -554,7 +590,7 @@ def generate_scene_candidates(session_id: str) -> dict:
     session["candidate_cache"] = payload
     session["stopped_reason"] = "awaiting_user_choice"
     save_store()
-    return ok({"items": payload}, stop_reason=session["stopped_reason"])
+    return ok({"items": payload, "source": getattr(generator, 'last_source', 'mock')}, stop_reason=session["stopped_reason"], warnings=warnings)
 
 
 class ExecuteSceneRequest(BaseModel):
@@ -588,6 +624,7 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
 
     result = orchestrator.execute_selected_candidate(session["engine_state"], candidate)
     scene_id = str(uuid.uuid4())
+    participant_name_map = build_participant_name_map(candidate, candidate_data.get("active_motives", []))
     scene_obj = {
         "id": scene_id,
         "session_id": session_id,
@@ -597,6 +634,8 @@ def execute_scene(session_id: str, body: ExecuteSceneRequest) -> dict:
         "manual_goal": session.get("manual_scene_goal"),
         "title": result.title,
         "participants": result.participants,
+        "participant_name_map": participant_name_map,
+        "participant_names": [participant_name_map.get(pid, pid) for pid in result.participants],
         "dialogue_log": result.dialogue_log,
         "action_log": result.action_log,
         "system_log": result.system_log,
