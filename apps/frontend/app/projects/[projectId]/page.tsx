@@ -1,0 +1,94 @@
+import Link from 'next/link';
+
+import { ProjectSessionManager } from '@/components/project-session-manager';
+import { ProjectSummaryPanel } from '@/components/project-summary-panel';
+import { apiGet } from '@/lib/api';
+
+export default async function ProjectDetailPage({ params }: { params: { projectId: string } }) {
+  const project = await apiGet<any>(`/projects/${params.projectId}`);
+  const sessionIds: string[] = project.data.session_ids ?? [];
+  const sessions = (
+    await Promise.all(
+      sessionIds.map(async (sessionId) => {
+        try {
+          const res = await apiGet<any>(`/sessions/${sessionId}`);
+          return res.data;
+        } catch {
+          return null;
+        }
+      })
+    )
+  ).filter(Boolean);
+  const latestSession = sessions.length > 0 ? sessions[sessions.length - 1] : null;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
+
+  return (
+    <section className="grid gap-4 xl:grid-cols-[1fr_1.2fr]">
+      <div className="space-y-4">
+        <ProjectSummaryPanel project={project.data} />
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h3 className="mb-2 text-sm font-semibold">설정 편집</h3>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Link className="rounded-lg bg-panel px-3 py-2" href={`/projects/${params.projectId}/characters`}>캐릭터 편집</Link>
+            <Link className="rounded-lg bg-panel px-3 py-2" href={`/projects/${params.projectId}/relationships`}>관계도 편집</Link>
+          </div>
+        </div>
+        <ProjectSessionManager projectId={params.projectId} sessions={sessions as any[]} />
+      </div>
+
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h3 className="mb-2 text-sm font-semibold">현재 세션 상태</h3>
+          <p className="text-xs text-slate-400">아래 버튼으로 세션을 시작하면 후보 생성 → 장면 실행 → 장면 검토 → 체크포인트 흐름으로 진행됩니다.</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <Link href={`/projects/${params.projectId}/sessions/new`} className="rounded-xl bg-accent px-3 py-2 font-semibold text-slate-950">
+              세션 시작
+            </Link>
+            {latestSession && (
+              <Link href={`/sessions/${latestSession.id}`} className="rounded-xl bg-panel px-3 py-2">
+                최근 세션 이어서 하기
+              </Link>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h3 className="mb-2 text-sm font-semibold">다음 장면 후보 / 최근 장면</h3>
+          <p className="text-xs text-slate-400">세션 화면에서 후보를 생성/선택하면, 최근 장면과 목표 충돌 정보가 누적됩니다.</p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h3 className="mb-2 text-sm font-semibold">인물 목표 / 충돌 구조</h3>
+          {latestSession?.current_major_goal_conflicts?.length ? (
+            <ul className="space-y-2 text-xs">
+              {latestSession.current_major_goal_conflicts.map((conflict: any, idx: number) => (
+                <li key={`${conflict.actor}-${idx}`} className="rounded-lg bg-panel px-3 py-2">
+                  <p><strong>{conflict.actor}</strong>: {conflict.actor_goal}</p>
+                  <p className="text-slate-400">충돌 대상: {conflict.rival} ({conflict.rival_goal})</p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-slate-400">아직 세션 충돌 요약이 없습니다. 세션 시작 후 후보를 생성해보세요.</p>
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+          <h3 className="mb-2 text-sm font-semibold">작가 도구</h3>
+          <p className="text-xs text-slate-400">자유 메모를 남기고 작업 결과를 Markdown/TXT로 내보낼 수 있습니다. (export는 출력본이며 내부 저장 파일과 별개)</p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs">
+            <Link href={`/projects/${params.projectId}/writer`} className="rounded-lg bg-panel px-3 py-2">
+              작가 메모 열기
+            </Link>
+            <a href={`${apiBase}/projects/${params.projectId}/export?format=markdown`} className="rounded-lg bg-panel px-3 py-2">
+              Markdown 내보내기
+            </a>
+            <a href={`${apiBase}/projects/${params.projectId}/export?format=txt`} className="rounded-lg bg-panel px-3 py-2">
+              TXT 내보내기
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
